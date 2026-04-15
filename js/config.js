@@ -5,7 +5,7 @@
 
 const CONFIG = {
     SERVER_URL: 'http://node24.lunes.host:3488',
-    SITE_URL:   'https://YOUR_USERNAME.github.io/room-alone', // ← غيّر ده
+    SITE_URL:   'https://fdsfdsfsdfsadssa.github.io/test', // ← غيّر ده
     SECRET:     'RoomAlone_Secret_RA2024_X9',
     ADMIN_PASS: 'roomalone2024',
 
