@@ -1,5 +1,5 @@
 // ============================================================
-//  Room Alone — admin.js (النسخة الاحترافية المطورة)
+//  Room Alone — admin.js
 // ============================================================
 
 let socket;
@@ -9,7 +9,6 @@ let adminPass   = localStorage.getItem('ra_admin_pass') || CONFIG.ADMIN_PASS;
 let isLoggedIn  = false;
 let audioCtx;
 
-// 1. الدخول (Login)
 function doLogin() {
     const val = document.getElementById('adminPassInput').value;
     if (val === adminPass) {
@@ -23,204 +22,296 @@ function doLogin() {
     }
 }
 
-// 2. التهيئة والاتصال بالسيرفر (Initialization)
-function initAdmin() {
-    // الاتصال بالسيرفر
-    socket = io(CONFIG.SERVER_URL, { transports: ['websocket', 'polling'] });
-
-    socket.on('connect', () => {
-        showToast('✅ متصل بالسيرفر لحظياً', 'success');
-    });
-
-    // استقبال الطلبات القديمة عند فتح الصفحة
-    socket.on('previous_orders', (data) => {
-        allOrders = data.filter(i => i.type === 'order');
-        allBookings = data.filter(i => i.type === 'booking');
-        renderAll();
-    });
-
-    // استقبال أي طلب جديد يصل الآن
-    socket.on('new_order_to_admin', (data) => {
-        playNotif(); // تشغيل صوت التنبيه
-        showToast(`🔔 طلب جديد من: ${data.tableName || data.deviceName}`, 'info');
-        
-        if (data.type === 'booking') {
-            allBookings.unshift(data);
-        } else {
-            allOrders.unshift(data);
-        }
-        renderAll();
-    });
+function doLogout() {
+    isLoggedIn = false;
+    if (socket) socket.disconnect();
+    document.getElementById('adminPanel').classList.remove('on');
+    document.getElementById('adminLogin').style.display = 'flex';
+    document.getElementById('adminPassInput').value = '';
 }
 
-// 3. عرض البيانات (Rendering)
-function renderAll() {
+function initAdmin() {
+    socket = io(CONFIG.SERVER_URL, { transports: ['websocket','polling'] });
+    socket.on('connect', () => showToast('✅ متصل بالسيرفر', 'success', 2000));
+    socket.on('disconnect', () => showToast('⚠️ انقطع الاتصال — بيحاول يتصل تاني...', 'error', 4000));
+
+    socket.on('previous_orders', (orders) => {
+        orders.forEach(o => { o.type === 'booking' ? pushBooking(o) : pushOrder(o); });
+        updateStats();
+    });
+
+    socket.on('new_order_to_admin', (data) => {
+        playNotif();
+        if (data.type === 'booking') {
+            pushBooking(data);
+            showToast('📅 حجز جديد: ' + data.deviceName, 'info');
+        } else {
+            pushOrder(data);
+            showToast('🛒 طلب جديد من ' + data.tableName, 'success');
+        }
+        updateStats();
+    });
+
+    generateQRCodes();
+}
+
+function pushOrder(order) {
+    if (allOrders.find(o => o.id === order.id)) return;
+    order.status = order.status || 'new';
+    allOrders.unshift(order);
     renderOrders();
-    renderBookings();
-    generateQRCodes(); // تحديث الـ QR Codes
 }
 
 function renderOrders() {
-    const container = document.getElementById('ordersList');
+    const el = document.getElementById('ordersList');
     if (allOrders.length === 0) {
-        container.innerHTML = '<div class="no-items">لا يوجد طلبات حالياً</div>';
+        el.innerHTML = '<div class="no-items">لا يوجد طلبات بعد</div>';
         return;
     }
+    el.innerHTML = allOrders.map(o => orderCardHTML(o)).join('');
+    updateBadge('ordBadge', allOrders.filter(o => o.status === 'new').length);
+}
 
-    container.innerHTML = allOrders.map(order => `
-        <div class="card animate-on-scroll visible">
-            <div class="flex-between mb-8">
-                <span class="text-gold">📦 طلب ${order.orderId}</span>
-                <span class="text-muted" style="font-size:0.8rem">${new Date(order.timestamp).toLocaleTimeString('ar-EG')}</span>
+function orderCardHTML(o) {
+    const statusMap = {
+        new:      { cls:'badge-new',  label:'جديد ✨' },
+        preparing:{ cls:'badge-prep', label:'بيتجهز 🍳' },
+        done:     { cls:'badge-done', label:'تم ✅' }
+    };
+    const s = statusMap[o.status] || statusMap.new;
+    const itemsHTML = (o.items || []).map(i =>
+        `<div class="order-item-row"><span>${i.name} × ${i.qty}</span><span>${i.price * i.qty} ج.م</span></div>`
+    ).join('');
+
+    return `
+    <div class="order-card ${o.status==='new'?'is-new':''} ${o.status==='done'?'is-done':''}" id="oc_${o.id}">
+        <div class="order-card-head">
+            <div>
+                <span class="order-table-name">📍 ${o.tableName || o.table}</span>
+                ${o.orderId ? `<span style="color:var(--text-muted);font-size:.78rem;margin-right:8px;">${o.orderId}</span>` : ''}
             </div>
-            <div style="font-weight:bold; margin-bottom:8px;">📍 ${order.tableName}</div>
-            <div class="order-items-list">
-                ${order.items.map(i => `<div>- ${i.name} (x${i.qty})</div>`).join('')}
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span class="badge ${s.cls}">${s.label}</span>
+                <span class="order-time-lbl">${o.timestamp ? formatDateTime(o.timestamp) : ''}</span>
             </div>
-            <div class="flex-between mt-16 pt-8" style="border-top:1px solid var(--gold-border)">
-                <span>الإجمالي: <strong class="text-gold">${order.total} ج.م</strong></span>
-                <button class="btn btn-outline btn-sm" onclick="removeOrder('${order.id}')">إكمال الطلب</button>
-            </div>
-            ${order.note ? `<div class="mt-8 text-muted" style="font-size:0.85rem">📝 ${order.note}</div>` : ''}
         </div>
-    `).join('');
+        <div class="order-items-wrap">
+            ${itemsHTML}
+            <div class="order-total-row"><span>الإجمالي</span><span>${o.total} ج.م</span></div>
+        </div>
+        ${o.note ? `<p class="order-note-txt">💬 ${o.note}</p>` : ''}
+        <div class="order-actions">
+            ${o.status==='new'      ? `<button class="btn btn-sm btn-ghost"   onclick="setOrderStatus(${o.id},'preparing')">🍳 بدأ التجهيز</button>` : ''}
+            ${o.status==='preparing'? `<button class="btn btn-sm btn-success" onclick="setOrderStatus(${o.id},'done')">✅ تم التسليم</button>` : ''}
+            ${o.status==='done'     ? `<button class="btn btn-sm btn-ghost"   onclick="setOrderStatus(${o.id},'new')">↩️ إعادة</button>` : ''}
+            <button class="btn btn-sm btn-danger" onclick="deleteOrder(${o.id})">🗑️</button>
+        </div>
+    </div>`;
+}
+
+function setOrderStatus(id, status) {
+    const order = allOrders.find(o => o.id === id);
+    if (!order) return;
+    order.status = status;
+    renderOrders();
+    updateStats();
+}
+
+function deleteOrder(id) {
+    allOrders = allOrders.filter(o => o.id !== id);
+    renderOrders();
+    updateStats();
+}
+
+function clearDoneOrders() {
+    allOrders = allOrders.filter(o => o.status !== 'done');
+    renderOrders();
+    updateStats();
+    showToast('تم مسح الطلبات المكتملة', 'info');
+}
+
+function pushBooking(b) {
+    if (allBookings.find(x => x.id === b.id || (x.timestamp === b.timestamp && x.custName === b.custName))) return;
+    b.bStatus = b.bStatus || 'pending';
+    allBookings.unshift(b);
+    renderBookings();
 }
 
 function renderBookings() {
-    const container = document.getElementById('bookingsList');
+    const el = document.getElementById('bookingsList');
     if (allBookings.length === 0) {
-        container.innerHTML = '<div class="no-items">لا يوجد حجوزات حالياً</div>';
+        el.innerHTML = '<div class="no-items">لا يوجد حجوزات بعد</div>';
         return;
     }
-
-    container.innerHTML = allBookings.map(b => `
-        <div class="card animate-on-scroll visible" style="border-right: 4px solid var(--gold)">
-            <div class="flex-between mb-8">
-                <span style="color:var(--green)">📅 حجز جديد</span>
-                <span class="text-muted" style="font-size:0.8rem">${new Date(b.timestamp).toLocaleTimeString('ar-EG')}</span>
+    el.innerHTML = allBookings.map(b => `
+        <div class="order-card" style="border-right-color:#88aaff;">
+            <div class="order-card-head">
+                <div>
+                    <span class="order-table-name">📍 ${b.deviceName}</span>
+                    <span class="badge badge-booking" style="margin-right:8px;">${b.deviceType==='ps'?'بلاي ستيشن':'روم نتفليكس'}</span>
+                </div>
+                <span class="order-time-lbl">${b.timestamp ? formatDateTime(b.timestamp) : ''}</span>
             </div>
-            <div style="font-weight:bold;">👤 ${b.custName}</div>
-            <div class="text-gold mb-8">📞 ${b.custPhone}</div>
-            <div class="mb-8">🎮 المكان: <strong>${b.deviceName}</strong></div>
-            <div class="mb-8">⏰ الوقت: ${b.time} (لمدة ${b.duration} ساعة)</div>
-            <button class="btn btn-gold btn-sm w-full mt-8" onclick="removeBooking('${b.id}')">تأكيد ومسح</button>
+            <div class="order-items-wrap">
+                <div class="order-item-row"><span>الاسم</span><span>${b.custName}</span></div>
+                <div class="order-item-row"><span>الموبايل</span><span dir="ltr">${b.custPhone}</span></div>
+                <div class="order-item-row"><span>الوقت</span><span>${b.time}</span></div>
+                <div class="order-item-row"><span>المدة</span><span>${b.duration} ساعة</span></div>
+                ${b.note ? `<div class="order-item-row"><span>ملاحظات</span><span>${b.note}</span></div>` : ''}
+            </div>
+            <div class="order-actions">
+                <button class="btn btn-sm btn-success" onclick="confirmBooking(this)">✅ تأكيد</button>
+                <button class="btn btn-sm btn-danger"  onclick="this.closest('.order-card').remove()">🗑️ حذف</button>
+            </div>
         </div>
     `).join('');
+    updateBadge('bkBadge', allBookings.length);
 }
 
-// 4. نظام الـ QR Code الاحترافي (الكارت)
+function confirmBooking(btn) {
+    const card = btn.closest('.order-card');
+    card.style.opacity = '.5';
+    btn.textContent = '✅ مؤكد';
+    btn.disabled    = true;
+    showToast('تم تأكيد الحجز', 'success');
+}
+
+// ── توليد وتحميل QR الكود الاحترافي ───────────────────────────
 function generateQRCodes() {
-    const grid = document.getElementById('qrGrid');
-    if (!grid) return;
+    const grid    = document.getElementById('qrGrid');
+    const siteUrl = CONFIG.SITE_URL;
     grid.innerHTML = '';
 
-    const logoImg = new Image();
-    logoImg.src = 'assets/logo.png'; // تأكد من وجود اللوجو في هذا المسار
+    CONFIG.TABLES.forEach(table => {
+        const code = getDailyCode(table.id);
+        const url  = `${siteUrl}/order.html?t=${table.id}&c=${code}`;
 
-    logoImg.onload = () => {
-        CONFIG.TABLES.forEach(table => {
-            const url = `${CONFIG.SITE_URL}/order.html?t=${table.id}`;
-            
-            const cardWrap = document.createElement('div');
-            cardWrap.className = 'qr-card-container';
-            cardWrap.innerHTML = `
-                <div id="qr_hidden_${table.id}" style="display:none;"></div>
-                <canvas id="canvas_${table.id}" width="400" height="550" class="qr-canvas-preview"></canvas>
-                <button class="btn btn-gold btn-sm w-full mt-8" onclick="downloadQR('${table.id}', '${table.name}')">📥 تحميل كارت ${table.name}</button>
-            `;
-            grid.appendChild(cardWrap);
+        const card = document.createElement('div');
+        card.className = 'qr-card';
+        card.innerHTML = `
+            <div class="qr-canvas-wrap" id="qr_${table.id}"></div>
+            <div class="qr-table-name">${table.icon} ${table.name}</div>
+            <div class="qr-code-pill">${code}</div>
+            <div class="qr-code-label">الكود الثابت للطاولة</div>
+            <button class="btn btn-gold btn-sm mt-16" style="width:100%" onclick="downloadQR('${table.name}', '${url}')">⬇️ تحميل كيو آر للطباعة</button>
+        `;
+        grid.appendChild(card);
 
-            // توليد الـ QR Code (مخفي للاستخدام في الرسم)
-            new QRCode(document.getElementById(`qr_hidden_${table.id}`), {
-                text: url, width: 260, height: 260, colorDark: "#000000", colorLight: "#ffffff"
+        try {
+            new QRCode(document.getElementById('qr_' + table.id), {
+                text: url, width: 130, height: 130, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H
             });
+        } catch (e) {
+            document.getElementById('qr_' + table.id).innerHTML = `<div style="font-size:.7rem;color:var(--text-muted);padding:8px;">QR غير متاح</div>`;
+        }
+    });
+}
 
-            // رسم الكارت على الكانفاس
-            setTimeout(() => {
-                const qrImg = document.querySelector(`#qr_hidden_${table.id} img`);
-                const canvas = document.getElementById(`canvas_${table.id}`);
-                const ctx = canvas.getContext('2d');
+function downloadQR(tableName, url) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 800; canvas.height = 1050;
+    const ctx = canvas.getContext('2d');
 
-                // 1. الخلفية
-                ctx.fillStyle = '#0c0c0c';
-                ctx.fillRect(0, 0, 400, 550);
+    ctx.fillStyle = '#060606'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.strokeStyle = '#C9A052'; ctx.lineWidth = 15; ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+    ctx.lineWidth = 2; ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
-                // 2. إطار ذهبي
-                ctx.strokeStyle = '#C9A052';
-                ctx.lineWidth = 8;
-                ctx.strokeRect(15, 15, 370, 520);
-
-                // 3. رسم اللوجو (في المنتصف العلوي)
-                ctx.drawImage(logoImg, 140, 40, 120, 120);
-
-                // 4. نصوص الكارت
-                ctx.fillStyle = '#E8C87A';
-                ctx.textAlign = 'center';
-                ctx.font = 'bold 24px Cairo';
-                ctx.fillText('Room Alone Gaming Cafe', 200, 190);
-                
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '18px Cairo';
-                ctx.fillText('امسح الكود لطلب مشروباتك وأكلك', 200, 225);
-
-                // 5. رسم الـ QR Code بخلفية بيضاء
-                if (qrImg && qrImg.src) {
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(65, 250, 270, 270);
-                    const q = new Image();
-                    q.src = qrImg.src;
-                    q.onload = () => ctx.drawImage(q, 70, 255, 260, 260);
-                }
-
-                // 6. اسم الطاولة في الأسفل
-                ctx.fillStyle = '#C9A052';
-                ctx.font = 'bold 30px Cairo';
-                ctx.fillText(`📍 ${table.name}`, 200, 510);
-
-            }, 600);
-        });
+    const logo = new Image();
+    logo.crossOrigin = "Anonymous";
+    
+    logo.onload = () => {
+        const logoWidth = 250;
+        const logoHeight = (logo.height / logo.width) * logoWidth;
+        ctx.drawImage(logo, (canvas.width - logoWidth) / 2, 80, logoWidth, logoHeight);
+        drawTextAndQR(logoHeight + 120);
     };
+    
+    logo.onerror = () => {
+        ctx.textAlign = 'center'; ctx.fillStyle = '#E8C87A'; ctx.font = 'bold 70px Cairo, sans-serif';
+        ctx.fillText('ROOM ALONE', canvas.width / 2, 160);
+        drawTextAndQR(220);
+    };
+    
+    logo.src = 'assets/logo.png'; 
+
+    function drawTextAndQR(startY) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#F2E8D0'; ctx.font = 'bold 55px Cairo, sans-serif';
+        ctx.fillText(tableName, canvas.width / 2, startY + 50);
+        
+        const tempDiv = document.createElement('div');
+        new QRCode(tempDiv, { text: url, width: 440, height: 440, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+
+        setTimeout(() => {
+            const qrCanvasEl = tempDiv.querySelector('canvas');
+            if(qrCanvasEl) {
+                const qrY = startY + 120;
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(160, qrY - 20, 480, 480);
+                ctx.drawImage(qrCanvasEl, 180, qrY, 440, 440);
+                ctx.fillStyle = '#A09080'; ctx.font = 'bold 32px Cairo, sans-serif';
+                ctx.fillText('امسح الكود لطلب الأكل والمشروبات 📱', canvas.width / 2, qrY + 530);
+                
+                const link = document.createElement('a');
+                link.download = `QR_${tableName}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } else { alert("حدث خطأ أثناء توليد الصورة."); }
+        }, 300);
+    }
 }
 
-function downloadQR(id, name) {
-    const canvas = document.getElementById(`canvas_${id}`);
-    const link = document.createElement('a');
-    link.download = `QR_RoomAlone_${name}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+function updateStats() {
+    const today   = new Date().toISOString().split('T')[0];
+    const todayOrders = allOrders.filter(o => o.timestamp && o.timestamp.startsWith(today));
+    const pending     = allOrders.filter(o => o.status === 'new' || o.status === 'preparing');
+    const revenue     = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const todayBk     = allBookings.filter(b => b.timestamp && b.timestamp.startsWith(today));
+
+    document.getElementById('statOrders').textContent   = allOrders.length;
+    document.getElementById('statPending').textContent  = pending.length;
+    document.getElementById('statBookings').textContent = todayBk.length;
+    document.getElementById('statRevenue').textContent  = revenue;
 }
 
-// 5. وظائف الإدارة
-function removeOrder(id) {
-    allOrders = allOrders.filter(o => o.id != id);
-    renderOrders();
-    showToast('تم إكمال الطلب بنجاح');
+function updateBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = count; el.style.display = count > 0 ? 'inline-block' : 'none';
 }
 
-function removeBooking(id) {
-    allBookings = allBookings.filter(b => b.id != id);
-    renderBookings();
-    showToast('تم تأكيد الحجز');
+function switchAdminTab(name, btn) {
+    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+function changePass() {
+    const old = document.getElementById('oldPass').value;
+    const nw  = document.getElementById('newPass').value;
+    const el  = document.getElementById('passAlert');
+
+    if (old !== adminPass) { el.innerHTML = '<div class="alert alert-error">كلمة السر القديمة غلط</div>'; return; }
+    if (nw.length < 6) { el.innerHTML = '<div class="alert alert-error">كلمة السر الجديدة لازم تكون 6 أحرف على الأقل</div>'; return; }
+    adminPass = nw; localStorage.setItem('ra_admin_pass', nw);
+    el.innerHTML = '<div class="alert alert-success">✅ تم تغيير كلمة السر</div>';
+    document.getElementById('oldPass').value = ''; document.getElementById('newPass').value = '';
+    setTimeout(() => el.innerHTML = '', 3000);
 }
 
 function playNotif() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // Do
-    osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.2); // Mi
-    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.5);
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+    } catch(e) {}
 }
 
-// تبديل الأقسام في لوحة التحكم
-function showSection(id, btn) {
-    document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-}
+function testNotif() { playNotif(); showToast('🔔 صوت الإشعار شغال', 'success'); }
