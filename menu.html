@@ -1,0 +1,22 @@
+<script>
+    function placeOrder(itemName, price) {
+        const table = prompt("رقم الطاولة أو الجهاز؟");
+        if (!table) return;
+
+        const order = {
+            id: Date.now(),
+            item: itemName,
+            price: price,
+            table: table,
+            time: new Date().toLocaleTimeString('ar-EG'),
+            status: 'pending'
+        };
+
+        // حفظ الطلب في الـ LocalStorage عشان الأدمن يشوفه
+        let orders = JSON.parse(localStorage.getItem('room_alone_orders') || '[]');
+        orders.push(order);
+        localStorage.setItem('room_alone_orders', JSON.stringify(orders));
+
+        alert("تم إرسال طلبك للأدمن بنجاح!");
+    }
+</script>
