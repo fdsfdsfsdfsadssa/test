@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>المنيو — Room Alone</title>
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="navbar-placeholder"></div>
+
+<div class="page-wrapper">
+  <div class="container section">
+
+    <div class="section-header animate-on-scroll">
+      <span class="section-tag">المنيو</span>
+      <h1 class="section-title">اختار اللي يعجبك</h1>
+      <div class="section-divider"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="menu-tabs">
+      <button class="menu-tab active" onclick="switchTab('drinks', this)">☕ مشروبات</button>
+      <button class="menu-tab"        onclick="switchTab('food',   this)">🍔 أكل</button>
+      <button class="menu-tab"        onclick="switchTab('snacks', this)">🍟 سناكس</button>
+    </div>
+
+    <!-- Grid -->
+    <div id="menuGrid" class="menu-grid"></div>
+
+    <!-- CTA -->
+    <div class="text-center mt-24 animate-on-scroll">
+      <p class="text-muted mb-16">عايز تطلب؟ امسح QR الطاولة بتاعتك</p>
+      <a href="order.html" class="btn btn-gold">🛒 اطلب دلوقتي</a>
+    </div>
+
+  </div>
+</div>
+
+<footer class="footer">
+  <img src="assets/logo.png" alt="Room Alone" class="footer-logo">
+  <p class="footer-text">© 2024 Room Alone</p>
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+function switchTab(category, btn) {
+    document.querySelectorAll('.menu-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderMenu(category);
+}
+
+function renderMenu(category) {
+    const items = CONFIG.MENU[category];
+    document.getElementById('menuGrid').innerHTML = items.map(item => `
+        <div class="menu-item animate-on-scroll">
+            <div class="mi-emoji">${item.emoji}</div>
+            <div class="mi-info">
+                <div class="mi-name">${item.name}</div>
+                ${item.desc ? `<div class="mi-desc">${item.desc}</div>` : ''}
+            </div>
+            <div class="mi-price">${item.price} ج.م</div>
+        </div>
+    `).join('');
+    // re-observe new elements
+    document.querySelectorAll('.animate-on-scroll:not(.visible)').forEach(el => {
+        setTimeout(() => el.classList.add('visible'), 50);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => renderMenu('drinks'));
+</script>
+</body>
+</html>
