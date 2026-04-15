@@ -1,0 +1,48 @@
+/* الألوان الأساسية */
+:root {
+    --gold: #C5A059;
+    --dark-bg: #050505;
+    --card-bg: #0f0f0f;
+}
+
+/* تخصيص السكرول بار عشان يليق بالموقع */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--gold);
+    border-radius: 10px;
+}
+
+/* أنيميشن ناعم للظهور */
+@keyframes goldGlow {
+    0% { box-shadow: 0 0 5px rgba(197, 160, 89, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(197, 160, 89, 0.5); }
+    100% { box-shadow: 0 0 5px rgba(197, 160, 89, 0.2); }
+}
+
+.gold-glow {
+    animation: goldGlow 3s infinite;
+}
+
+/* تأثير عند تمرير الماوس على الكروت */
+.menu-card {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.menu-card:hover {
+    border-color: var(--gold);
+    transform: translateY(-8px) scale(1.02);
+    background: #141414;
+}
+
+/* تدرج ذهبي للنصوص المهمة */
+.text-gradient-gold {
+    background: linear-gradient(to right, #C5A059, #F9E4B7, #C5A059);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
