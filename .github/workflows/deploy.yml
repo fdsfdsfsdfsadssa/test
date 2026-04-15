@@ -1,13 +1,18 @@
-name: Deploy to GitHub Pages
+name: 🚀 Deploy Room Alone to GitHub Pages
 
 on:
   push:
-    branches: ["main"] # هيشتغل لما ترفع على برانش main
+    branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -16,14 +21,17 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: ⬇️ Checkout
         uses: actions/checkout@v4
-      - name: Setup Pages
+
+      - name: ⚙️ Setup Pages
         uses: actions/configure-pages@v4
-      - name: Upload artifact
+
+      - name: 📦 Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # هيرفع كل ملفات الفولدر الرئيسي
-      - name: Deploy to GitHub Pages
+          path: '.'
+
+      - name: 🌐 Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4.github/workflows/static.yml
+        uses: actions/deploy-pages@v4
