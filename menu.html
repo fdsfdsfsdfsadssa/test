@@ -1,22 +1,26 @@
-<script>
-    function placeOrder(itemName, price) {
-        const table = prompt("رقم الطاولة أو الجهاز؟");
-        if (!table) return;
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قائمة المأكولات - Room Alone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-[#050505] text-white">
+    <nav class="p-6 flex justify-between items-center border-b border-white/5 backdrop-blur-md sticky top-0 z-50">
+        <a href="index.html" class="text-xl font-bold text-[#C5A059]">ROOM ALONE</a>
+        <a href="index.html" class="text-sm opacity-70 hover:opacity-100 transition">العودة للرئيسية</a>
+    </nav>
 
-        const order = {
-            id: Date.now(),
-            item: itemName,
-            price: price,
-            table: table,
-            time: new Date().toLocaleTimeString('ar-EG'),
-            status: 'pending'
-        };
+    <div class="container mx-auto px-6 py-12">
+        <div id="dynamic-menu">
+            </div>
+    </div>
 
-        // حفظ الطلب في الـ LocalStorage عشان الأدمن يشوفه
-        let orders = JSON.parse(localStorage.getItem('room_alone_orders') || '[]');
-        orders.push(order);
-        localStorage.setItem('room_alone_orders', JSON.stringify(orders));
-
-        alert("تم إرسال طلبك للأدمن بنجاح!");
-    }
-</script>
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
