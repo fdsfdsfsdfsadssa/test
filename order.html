@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اطلب دلوقتي — Room Alone</title>
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="navbar-placeholder"></div>
+
+<div class="page-wrapper">
+
+  <!-- ══ GATE ══════════════════════════════════════════════════ -->
+  <div id="orderGate" class="order-gate">
+    <div class="gate-card animate-on-scroll visible">
+
+      <div class="gate-icon">🔐</div>
+      <h2 class="gate-title">تحقق من مكانك</h2>
+      <p class="gate-sub">امسح QR الطاولة بتاعتك أو اكتب الكود اللي على الطاولة</p>
+
+      <div id="gateAlert"></div>
+
+      <!-- Table selector -->
+      <div class="form-group text-right">
+        <label class="form-label">اختار طاولتك / جهازك</label>
+        <select class="form-select" id="tableSelect">
+          <option value="">— اختار —</option>
+          <optgroup label="🎮 بلاي ستيشن">
+            <option value="PS1">بلاي ستيشن 1</option>
+            <option value="PS2">بلاي ستيشن 2</option>
+            <option value="PS3">بلاي ستيشن 3</option>
+            <option value="PS4">بلاي ستيشن 4</option>
+          </optgroup>
+          <optgroup label="📺 روم نتفليكس">
+            <option value="ROOM1">روم نتفليكس 1</option>
+            <option value="ROOM2">روم نتفليكس 2</option>
+          </optgroup>
+          <optgroup label="☕ كافيه">
+            <option value="T1">طاولة كافيه 1</option>
+            <option value="T2">طاولة كافيه 2</option>
+            <option value="T3">طاولة كافيه 3</option>
+            <option value="T4">طاولة كافيه 4</option>
+            <option value="T5">طاولة كافيه 5</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Code input -->
+      <div class="form-group">
+        <label class="form-label">الكود اليومي (4 أرقام)</label>
+        <input type="number" class="form-input code-input" id="codeInput"
+               placeholder="• • • •" maxlength="4"
+               oninput="if(this.value.length>4)this.value=this.value.slice(0,4)"
+               onkeydown="if(event.key==='Enter')enterWithCode()">
+      </div>
+
+      <button class="btn btn-gold btn-full" onclick="enterWithCode()">✅ دخول</button>
+
+      <div class="gate-or">أو</div>
+      <p style="color:var(--text-muted);font-size:.8rem;line-height:1.8;">
+        🔍 <strong style="color:var(--text-dim)">مش قادر تقرأ الكود؟</strong><br>
+        اطلب من الموظف الكود الخاص بطاولتك
+      </p>
+
+    </div>
+  </div>
+
+  <!-- ══ ORDER MAIN ════════════════════════════════════════════ -->
+  <div id="orderMain" class="hidden">
+    <div class="container" style="padding-top:32px;padding-bottom:60px;">
+
+      <div class="order-header">
+        <div>
+          <span class="section-tag">اطلب دلوقتي</span>
+          <h2 class="section-title" style="margin-bottom:0;">المنيو</h2>
+        </div>
+        <div class="order-table-badge" id="tableBadge">📍 —</div>
+      </div>
+
+      <!-- Menu tabs -->
+      <div class="menu-tabs mb-24">
+        <button class="menu-tab active" onclick="switchOrderTab('drinks',this)">☕ مشروبات</button>
+        <button class="menu-tab"        onclick="switchOrderTab('food',this)">🍔 أكل</button>
+        <button class="menu-tab"        onclick="switchOrderTab('snacks',this)">🍟 سناكس</button>
+      </div>
+
+      <div class="order-layout">
+
+        <!-- Left: menu items -->
+        <div>
+          <div id="orderMenuGrid" class="menu-grid" style="gap:12px;"></div>
+        </div>
+
+        <!-- Right: cart -->
+        <div>
+          <div class="cart-box">
+            <h3 class="cart-title">🛒 سلتك</h3>
+            <div id="cartItems"><div class="cart-empty">السلة فاضية — أضف حاجة من المنيو</div></div>
+            <div id="cartTotalRow" class="hidden cart-total-row">
+              <span>الإجمالي</span>
+              <span id="cartTotalVal"></span>
+            </div>
+            <textarea id="orderNote" class="cart-note" placeholder="ملاحظات للطلب (اختياري)..."></textarea>
+            <div id="cartAlert"></div>
+            <button id="submitBtn" class="btn btn-gold btn-full" disabled onclick="submitOrder()">
+              إرسال الطلب ←
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CONFIRM ════════════════════════════════════════════════ -->
+  <div id="orderConfirm" class="order-confirm hidden">
+    <div class="confirm-card">
+      <div class="confirm-anim">✅</div>
+      <h2 style="font-family:'Playfair Display',serif;color:var(--gold-lt);margin:20px 0 8px;">تم إرسال طلبك!</h2>
+      <p style="color:var(--text-muted);margin-bottom:8px;">رقم الطلب: <strong id="confirmOrderId" style="color:var(--gold)"></strong></p>
+      <p style="color:var(--text-muted);margin-bottom:28px;font-size:.88rem;line-height:1.8;">الطلب وصل للموظف — هيجيلك في أقرب وقت 🚀</p>
+      <button class="btn btn-outline" onclick="orderAgain()">🛒 طلب تاني</button>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <img src="assets/logo.png" alt="Room Alone" class="footer-logo">
+  <p class="footer-text">© 2024 Room Alone</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/order.js"></script>
+</body>
+</html>
