@@ -5,7 +5,7 @@
 
 const CONFIG = {
     SERVER_URL: 'http://node24.lunes.host:3488', // ⚠️ يفضل لاحقاً رفعه على استضافة تدعم https مثل Render
-    SITE_URL:   'https://fdsfdsfsdfsadssaE.github.io/test', // ← غيّر ده لرابط موقعك
+    SITE_URL:   'https://fdsfdsfsdfsadssa.github.io/test', // ← غيّر ده لرابط موقعك
     SECRET:     'RoomAlone_Secret_RA2024_X9',
     ADMIN_PASS: '1',
 
