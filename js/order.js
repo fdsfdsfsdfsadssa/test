@@ -7,45 +7,31 @@ let cart          = [];
 let currentTable  = null;
 let currentTableName = '';
 
-// ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     socket = io(CONFIG.SERVER_URL, { transports: ['websocket','polling'] });
 
-    // Try auto-validate via URL params (?t=TABLE_ID&c=CODE)
+    // الدخول المباشر من الـ QR Code
     const params   = new URLSearchParams(location.search);
     const tableId  = params.get('t');
-    const code     = params.get('c');
 
-    if (tableId && code) {
-        if (validateTableAccess(tableId, code)) {
-            unlockOrder(tableId);
+    if (tableId) {
+        const table = getTableById(tableId);
+        if (table) {
+            unlockOrder(tableId); // دخول مباشر بدون كود!
         } else {
-            setGateAlert('❌ الـ QR منتهي أو غلط — اطلب كود جديد من الموظف', 'error');
+            setGateAlert('❌ الباركود غير صحيح، يرجى التأكد.', 'error');
         }
     }
 });
 
-// ── Gate — manual code entry ──────────────────────────────────
-function enterWithCode() {
+function enterManually() {
     const tableId = document.getElementById('tableSelect').value;
-    const code    = document.getElementById('codeInput').value.trim();
-
     if (!tableId) { setGateAlert('اختار طاولتك الأول', 'error'); return; }
-    if (!code)    { setGateAlert('اكتب الكود', 'error');          return; }
-
-    if (validateTableAccess(tableId, code)) {
-        unlockOrder(tableId);
-    } else {
-        setGateAlert('❌ الكود غلط! تأكد من الأرقام أو اطلب من الموظف', 'error');
-        document.getElementById('codeInput').value = '';
-        document.getElementById('codeInput').focus();
-    }
+    unlockOrder(tableId);
 }
 
 function setGateAlert(msg, type) {
-    document.getElementById('gateAlert').innerHTML =
-        `<div class="alert alert-${type}">${msg}</div>`;
-    setTimeout(() => document.getElementById('gateAlert').innerHTML = '', 4000);
+    document.getElementById('gateAlert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
 }
 
 function unlockOrder(tableId) {
@@ -59,6 +45,8 @@ function unlockOrder(tableId) {
 
     renderOrderMenu('drinks');
 }
+
+// ... (باقي دوال الإضافة للسلة renderOrderMenu و addToCart و submitOrder كما هي في الكود القديم لديك) ...
 
 // ── Menu rendering ─────────────────────────────────────────────
 function switchOrderTab(category, btn) {
