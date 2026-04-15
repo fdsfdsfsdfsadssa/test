@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الأدمن — Room Alone</title>
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { direction: rtl; }
+  .admin-topbar { gap:12px; }
+  .live-dot { width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite; display:inline-block; margin-left:6px; }
+  @keyframes pulse{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+  .no-items { text-align:center;color:var(--text-muted);padding:48px;font-size:.9rem; }
+  .section-panel { display:none; }
+  .section-panel.active { display:block; }
+  #notifSound { display:none; }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN GATE ═══════════════════════════════════════════ -->
+<div id="adminLogin" class="admin-login-wrap">
+  <div class="gate-card" style="max-width:380px;">
+    <div class="gate-icon">🔒</div>
+    <h2 class="gate-title">لوحة التحكم</h2>
+    <p class="gate-sub">Room Alone Admin</p>
+    <div id="loginAlert"></div>
+    <div class="form-group">
+      <label class="form-label">كلمة السر</label>
+      <input type="password" class="form-input" id="adminPassInput"
+             placeholder="••••••••"
+             onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-gold btn-full" onclick="doLogin()">دخول ←</button>
+  </div>
+</div>
+
+<!-- ══ ADMIN PANEL ═══════════════════════════════════════════ -->
+<div id="adminPanel">
+
+  <div class="admin-topbar">
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="switchAdminTab('orders',this)">📋 الطلبات <span id="ordBadge" class="badge badge-new" style="display:none">0</span></button>
+      <button class="admin-tab"        onclick="switchAdminTab('bookings',this)">📅 الحجوزات <span id="bkBadge" class="badge badge-booking" style="display:none">0</span></button>
+      <button class="admin-tab"        onclick="switchAdminTab('qr',this)">📱 كودات QR</button>
+      <button class="admin-tab"        onclick="switchAdminTab('settings',this)">⚙️ إعدادات</button>
+    </div>
+    <div style="margin-right:auto;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:.78rem;color:var(--text-muted);">
+        <span class="live-dot"></span> مباشر
+      </span>
+      <span class="admin-brand">Room Alone</span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="admin-body">
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-num" id="statOrders">0</div><div class="stat-lbl">إجمالي الطلبات</div></div>
+      <div class="stat-box"><div class="stat-num" id="statPending">0</div><div class="stat-lbl">طلبات معلقة</div></div>
+      <div class="stat-box"><div class="stat-num" id="statBookings">0</div><div class="stat-lbl">حجوزات اليوم</div></div>
+      <div class="stat-box"><div class="stat-num" id="statRevenue">0</div><div class="stat-lbl">إيرادات اليوم (ج.م)</div></div>
+    </div>
+
+    <!-- ── Orders Tab ── -->
+    <div id="tab-orders" class="section-panel active">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <h3 style="font-family:'Playfair Display',serif;color:var(--gold-lt);">الطلبات</h3>
+        <button class="btn btn-ghost btn-sm" onclick="clearDoneOrders()">🗑️ مسح المكتملة</button>
+      </div>
+      <div id="ordersList"><div class="no-items">لا يوجد طلبات بعد</div></div>
+    </div>
+
+    <!-- ── Bookings Tab ── -->
+    <div id="tab-bookings" class="section-panel">
+      <h3 style="font-family:'Playfair Display',serif;color:var(--gold-lt);margin-bottom:20px;">الحجوزات</h3>
+      <div id="bookingsList"><div class="no-items">لا يوجد حجوزات بعد</div></div>
+    </div>
+
+    <!-- ── QR Tab ── -->
+    <div id="tab-qr" class="section-panel">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h3 style="font-family:'Playfair Display',serif;color:var(--gold-lt);">كودات QR اليومية</h3>
+          <p style="color:var(--text-muted);font-size:.82rem;margin-top:4px;">
+            الكود بيتغير كل يوم تلقائياً — امسح الـ QR أو اكتب الكود على الطاولة
+          </p>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ طباعة الكودات</button>
+      </div>
+
+      <div style="margin-bottom:16px;" class="alert alert-info">
+        💡 الكودات دي بتتغير تلقائياً كل يوم الساعة 12 الليل — محدش من برا يقدر يطلب من غيرها
+      </div>
+
+      <div class="qr-grid" id="qrGrid"></div>
+    </div>
+
+    <!-- ── Settings Tab ── -->
+    <div id="tab-settings" class="section-panel">
+      <h3 style="font-family:'Playfair Display',serif;color:var(--gold-lt);margin-bottom:24px;">الإعدادات</h3>
+
+      <div class="card" style="max-width:420px;margin-bottom:20px;">
+        <h4 style="color:var(--gold);margin-bottom:16px;">🔑 تغيير كلمة السر</h4>
+        <div class="form-group">
+          <label class="form-label">كلمة السر الحالية</label>
+          <input type="password" class="form-input" id="oldPass" placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label class="form-label">كلمة السر الجديدة</label>
+          <input type="password" class="form-input" id="newPass" placeholder="••••••••">
+        </div>
+        <div id="passAlert"></div>
+        <button class="btn btn-gold" onclick="changePass()">💾 حفظ</button>
+      </div>
+
+      <div class="card" style="max-width:420px;">
+        <h4 style="color:var(--gold);margin-bottom:12px;">🔔 إشعارات</h4>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px;">صوت إشعار عند وصول طلب جديد</p>
+        <button class="btn btn-outline btn-sm" onclick="testNotif()">🔊 اختبار الصوت</button>
+      </div>
+    </div>
+
+  </div><!-- /admin-body -->
+</div><!-- /adminPanel -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
