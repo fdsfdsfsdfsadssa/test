@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <title>Room Alone | Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #000; color: white; font-family: 'Cairo', sans-serif; }
+        .admin-card { background: #0a0a0a; border-left: 4px solid #C5A059; }
+    </style>
+</head>
+<body>
+    <div id="loginGate" class="h-screen flex items-center justify-center p-6">
+        <div class="bg-[#111] p-10 rounded-3xl border border-[#C5A059]/30 w-full max-w-md">
+            <h2 class="text-2xl font-bold text-[#C5A059] mb-8 text-center uppercase tracking-widest">إدارة Room Alone</h2>
+            <input id="email" type="email" placeholder="البريد الإلكتروني" class="w-full bg-black border border-white/10 p-4 mb-4 rounded-xl focus:border-[#C5A059] outline-none transition">
+            <input id="pass" type="password" placeholder="كلمة السر" class="w-full bg-black border border-white/10 p-4 mb-8 rounded-xl focus:border-[#C5A059] outline-none transition">
+            <button onclick="checkLogin()" class="w-full bg-[#C5A059] text-black font-bold py-4 rounded-xl hover:scale-105 transition">دخول النظام</button>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hidden p-8">
+        <div class="flex justify-between items-center mb-12">
+            <h1 class="text-3xl font-bold text-[#C5A059]">الطلبات الحالية</h1>
+            <button onclick="clearOrders()" class="text-red-500 text-sm">مسح السجل</button>
+        </div>
+        
+        <div id="ordersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </div>
+
+    <script>
+        function checkLogin() {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('pass').value;
+            if(e === "tests@test.test" && p === "test123") {
+                document.getElementById('loginGate').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                loadOrders();
+                // تحديث تلقائي كل 5 ثواني
+                setInterval(loadOrders, 5000);
+            } else {
+                alert("بيانات غير صحيحة");
+            }
+        }
+
+        function loadOrders() {
+            const container = document.getElementById('ordersContainer');
+            const orders = JSON.parse(localStorage.getItem('room_alone_orders') || '[]');
+            
+            if(orders.length === 0) {
+                container.innerHTML = '<p class="text-gray-600">لا يوجد طلبات حالياً...</p>';
+                return;
+            }
+
+            container.innerHTML = orders.reverse().map(o => `
+                <div class="admin-card p-6 rounded-xl animate__animated animate__fadeIn">
+                    <div class="flex justify-between mb-4">
+                        <span class="text-gray-500 text-sm">${o.time}</span>
+                        <span class="bg-[#C5A059] text-black text-xs font-bold px-2 py-1 rounded">${o.table}</span>
+                    </div>
+                    <h3 class="text-xl font-bold">${o.item}</h3>
+                    <p class="text-[#C5A059] mt-2">${o.price} EGP</p>
+                </div>
+            `).join('');
+        }
+
+        function clearOrders() {
+            localStorage.removeItem('room_alone_orders');
+            loadOrders();
+        }
+    </script>
+</body>
+</html>
